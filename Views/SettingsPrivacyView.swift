@@ -1,6 +1,46 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+// MARK: - File Exporter Documents
+struct CSVDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.commaSeparatedText, .plainText] }
+    var text: String = ""
+
+    init(text: String = "") {
+        self.text = text
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        if let data = configuration.file.regularFileContents {
+            text = String(decoding: data, as: UTF8.self)
+        }
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        let data = Data(text.utf8)
+        return FileWrapper(regularFileWithContents: data)
+    }
+}
+
+struct BackupDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.json] }
+    var data: Data = Data()
+
+    init(data: Data = Data()) {
+        self.data = data
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        if let data = configuration.file.regularFileContents {
+            self.data = data
+        }
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        return FileWrapper(regularFileWithContents: data)
+    }
+}
+
 struct SettingsPrivacyView: View {
     @ObservedObject var expenseStore: ExpenseStore
     @ObservedObject var haptics = HapticsManager.shared
@@ -21,21 +61,37 @@ struct SettingsPrivacyView: View {
         NavigationStack {
             Form {
                 // Section: Haptics & Feel
-                Section("Feedback & Interactions") {
-                    Toggle("Haptic Feedback", isOn: $haptics.isHapticsEnabled)
-                    Text("Controls tactile clicks on categories, save confirmations, and goal milestones.")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                Section {
+                    Toggle(isOn: $haptics.isHapticsEnabled) {
+                        settingsRowLabel(
+                            title: "Haptic Feedback",
+                            icon: "hand.tap.fill",
+                            color: .orange
+                        )
+                    }
+                } header: {
+                    Text("Interactions")
+                } footer: {
+                    Text("Provides tactile clicks on category buttons, quick presets, save confirmations, and goal milestones.")
                 }
 
                 // Section: Notifications (Stage 6)
-                Section("Notifications & Reminders") {
-                    Toggle("Log Confirmation Alert", isOn: $notifications.notifyOnExpenseLogged)
-                    Text("Sends a background confirmation when an expense is logged via Shortcuts or Back Tap. Suppressed when app is active in the foreground.")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                Section {
+                    Toggle(isOn: $notifications.notifyOnExpenseLogged) {
+                        settingsRowLabel(
+                            title: "Log Confirmation Alert",
+                            icon: "bell.badge.fill",
+                            color: .red
+                        )
+                    }
 
-                    Toggle("Daily Savings Check-in", isOn: $notifications.dailySavingsReminder)
+                    Toggle(isOn: $notifications.dailySavingsReminder) {
+                        settingsRowLabel(
+                            title: "Daily Savings Check-in",
+                            icon: "clock.fill",
+                            color: .indigo
+                        )
+                    }
 
                     if notifications.dailySavingsReminder {
                         DatePicker(
@@ -44,68 +100,106 @@ struct SettingsPrivacyView: View {
                             displayedComponents: .hourAndMinute
                         )
                     }
+                } header: {
+                    Text("Notifications & Reminders")
+                } footer: {
+                    Text("Log confirmations are automatically silenced when the app is active in the foreground.")
                 }
 
                 // Section: Shortcuts & Back Tap (Stage 6)
-                Section("Back Tap & iPhone Shortcuts") {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Fast Capture via Back Tap")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                        Text("1. Open iOS Settings > Accessibility > Touch > Back Tap.\n2. Choose Double Tap or Triple Tap.\n3. Scroll down to Shortcuts and select 'Log Expense'.\n\nNow, double-tapping the back of your iPhone instantly triggers expense capture.")
-                            .font(.caption)
+                Section {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 12) {
+                            settingsIcon(icon: "iphone.radiowaves.left.and.right", color: .purple)
+                            Text("Fast Capture via Back Tap")
+                                .font(.system(.body, design: .rounded))
+                                .fontWeight(.semibold)
+                        }
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            stepRow(number: "1", text: "Open iOS Settings > Accessibility > Touch > Back Tap.")
+                            stepRow(number: "2", text: "Choose Double Tap or Triple Tap.")
+                            stepRow(number: "3", text: "Scroll down to Shortcuts and select 'Log Expense'.")
+                        }
+                        .padding(.top, 2)
+
+                        Text("Double-tapping the back of your iPhone instantly triggers expense capture.")
+                            .font(.caption2)
                             .foregroundColor(.secondary)
                     }
                     .padding(.vertical, 4)
+                } header: {
+                    Text("Hardware Shortcuts")
                 }
 
                 // Section: Data & Backup (Stage 7)
-                Section("Data Management") {
+                Section {
                     Button {
                         exportedCSVText = expenseStore.exportCSV()
                         showingCSVExporter = true
+                        HapticsManager.shared.lightFeedback()
                     } label: {
-                        Label("Export Expenses to CSV", systemImage: "square.and.arrow.up")
+                        settingsRowLabel(title: "Export Expenses to CSV", icon: "square.and.arrow.up.fill", color: .blue)
                     }
 
                     Button {
                         showingCSVImporter = true
+                        HapticsManager.shared.lightFeedback()
                     } label: {
-                        Label("Import Expenses from CSV", systemImage: "square.and.arrow.down")
+                        settingsRowLabel(title: "Import Expenses from CSV", icon: "square.and.arrow.down.fill", color: .teal)
                     }
 
                     Button {
                         do {
                             exportedBackupData = try expenseStore.createBackupData()
                             showingBackupExporter = true
+                            HapticsManager.shared.lightFeedback()
                         } catch {
                             alertTitle = "Backup Failed"
                             alertMessage = error.localizedDescription
                             showAlert = true
                         }
                     } label: {
-                        Label("Create JSON Backup", systemImage: "archivebox")
+                        settingsRowLabel(title: "Create Full JSON Backup", icon: "archivebox.fill", color: .cyan)
                     }
 
                     Button {
                         showingBackupImporter = true
+                        HapticsManager.shared.lightFeedback()
                     } label: {
-                        Label("Restore from JSON Backup", systemImage: "arrow.clockwise")
+                        settingsRowLabel(title: "Restore from JSON Backup", icon: "arrow.clockwise.circle.fill", color: .blue)
                     }
+                } header: {
+                    Text("Data & Backup")
                 }
 
                 // Section: Privacy & Security (Stage 7)
-                Section("Privacy & Zero Cloud Storage") {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Label("100% On-Device & Offline", systemImage: "lock.shield.fill")
-                            .font(.headline)
-                            .foregroundColor(.green)
+                Section {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 10) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(Color.green.opacity(0.18))
+                                    .frame(width: 32, height: 32)
+                                Image(systemName: "lock.shield.fill")
+                                    .foregroundColor(.green)
+                                    .font(.system(size: 16, weight: .bold))
+                            }
 
-                        Text("Your finances are private. This app does not use third-party tracking, ads, bank connections, cloud sync, or external analytics. All data is kept securely in your iPhone's local sandbox.")
+                            Text("100% On-Device & Private")
+                                .font(.system(.body, design: .rounded))
+                                .fontWeight(.bold)
+                                .foregroundColor(.primary)
+                        }
+
+                        Text("Your financial data never leaves your device. No third-party tracking, no ads, no cloud telemetry, and no account requirements. Everything stays encrypted in your iPhone's local sandbox.")
                             .font(.caption)
                             .foregroundColor(.secondary)
+                            .lineSpacing(2)
                     }
                     .padding(.vertical, 4)
+                } header: {
+                    Text("Privacy Architecture")
                 }
 
                 // Section: About & Identity
@@ -113,7 +207,7 @@ struct SettingsPrivacyView: View {
                     HStack {
                         Text("Version")
                         Spacer()
-                        Text("2.0.0 (Local Build)")
+                        Text("2.0.0 (Apple Design Award Edition)")
                             .foregroundColor(.secondary)
                     }
                     HStack {
@@ -132,11 +226,13 @@ struct SettingsPrivacyView: View {
                 defaultFilename: "expenses-\(dateSuffix()).csv"
             ) { result in
                 switch result {
-                case .success(let url):
+                case .success:
+                    HapticsManager.shared.successFeedback()
                     alertTitle = "Export Complete"
                     alertMessage = "Expenses successfully exported to CSV."
                     showAlert = true
                 case .failure(let error):
+                    HapticsManager.shared.warningFeedback()
                     alertTitle = "Export Failed"
                     alertMessage = error.localizedDescription
                     showAlert = true
@@ -152,6 +248,7 @@ struct SettingsPrivacyView: View {
                     guard let url = urls.first else { return }
                     importCSV(from: url)
                 case .failure(let error):
+                    HapticsManager.shared.warningFeedback()
                     alertTitle = "Import Failed"
                     alertMessage = error.localizedDescription
                     showAlert = true
@@ -164,6 +261,7 @@ struct SettingsPrivacyView: View {
                 defaultFilename: "expenses-backup-\(dateSuffix()).json"
             ) { result in
                 if case .success = result {
+                    HapticsManager.shared.successFeedback()
                     alertTitle = "Backup Complete"
                     alertMessage = "Local JSON backup saved."
                     showAlert = true
@@ -179,6 +277,7 @@ struct SettingsPrivacyView: View {
                     guard let url = urls.first else { return }
                     restoreBackup(from: url)
                 case .failure(let error):
+                    HapticsManager.shared.warningFeedback()
                     alertTitle = "Restore Failed"
                     alertMessage = error.localizedDescription
                     showAlert = true
@@ -189,6 +288,42 @@ struct SettingsPrivacyView: View {
             } message: {
                 Text(alertMessage)
             }
+        }
+    }
+
+    // MARK: - Row Helpers
+    private func settingsRowLabel(title: String, icon: String, color: Color) -> some View {
+        HStack(spacing: 12) {
+            settingsIcon(icon: icon, color: color)
+            Text(title)
+                .font(.system(.body, design: .rounded))
+                .foregroundColor(.primary)
+        }
+    }
+
+    private func settingsIcon(icon: String, color: Color) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(color)
+                .frame(width: 28, height: 28)
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.white)
+        }
+    }
+
+    private func stepRow(number: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(number)
+                .font(.caption2)
+                .fontWeight(.bold)
+                .foregroundColor(.white)
+                .frame(width: 16, height: 16)
+                .background(Color.purple)
+                .clipShape(Circle())
+            Text(text)
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
     }
 
@@ -226,10 +361,12 @@ struct SettingsPrivacyView: View {
         do {
             let content = try String(contentsOf: url, encoding: .utf8)
             let result = try expenseStore.importCSV(content)
+            HapticsManager.shared.successFeedback()
             alertTitle = "CSV Import Succeeded"
             alertMessage = "Imported \(result.imported) expenses (\(result.skipped) skipped)."
             showAlert = true
         } catch {
+            HapticsManager.shared.warningFeedback()
             alertTitle = "CSV Import Failed"
             alertMessage = error.localizedDescription
             showAlert = true
@@ -248,53 +385,15 @@ struct SettingsPrivacyView: View {
         do {
             let data = try Data(contentsOf: url)
             let count = try expenseStore.restoreFromBackup(data: data)
+            HapticsManager.shared.successFeedback()
             alertTitle = "Backup Restored"
             alertMessage = "Successfully restored \(count) records from backup."
             showAlert = true
         } catch {
+            HapticsManager.shared.warningFeedback()
             alertTitle = "Restore Failed"
             alertMessage = error.localizedDescription
             showAlert = true
         }
-    }
-}
-
-// MARK: - File Document Wrappers
-struct CSVDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.commaSeparatedText, .plainText] }
-    var text: String
-
-    init(text: String) {
-        self.text = text
-    }
-
-    init(configuration: ReadConfiguration) throws {
-        if let data = configuration.file.regularFileContents {
-            text = String(decoding: data, as: UTF8.self)
-        } else {
-            text = ""
-        }
-    }
-
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        let data = Data(text.utf8)
-        return FileWrapper(regularFileWithContents: data)
-    }
-}
-
-struct BackupDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.json] }
-    var data: Data
-
-    init(data: Data) {
-        self.data = data
-    }
-
-    init(configuration: ReadConfiguration) throws {
-        data = configuration.file.regularFileContents ?? Data()
-    }
-
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        FileWrapper(regularFileWithContents: data)
     }
 }

@@ -11,6 +11,7 @@ struct GoalDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.colorScheme) private var colorScheme
 
     private var goal: SavingsGoal? {
         goalStore.goals.first(where: { $0.id == goalId })
@@ -19,27 +20,32 @@ struct GoalDetailView: View {
     var body: some View {
         Group {
             if let goal = goal {
-                ScrollView {
-                    VStack(spacing: 20) {
-                        // Header Summary Card
-                        goalSummaryCard(goal)
+                ZStack {
+                    Color(uiColor: .systemGroupedBackground)
+                        .ignoresSafeArea()
 
-                        // Consistency Dashboard
-                        consistencyMetricsSection(goal)
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            // Header Summary Card
+                            goalSummaryCard(goal)
 
-                        // Savings Calendar (Stage 4)
-                        savingsCalendarSection(goal)
+                            // Consistency Dashboard
+                            consistencyMetricsSection(goal)
 
-                        // Cost Breakdown (if present)
-                        if !goal.costBreakdown.isEmpty {
-                            costBreakdownSection(goal)
+                            // Savings Calendar (Stage 4)
+                            savingsCalendarSection(goal)
+
+                            // Cost Breakdown (if present)
+                            if !goal.costBreakdown.isEmpty {
+                                costBreakdownSection(goal)
+                            }
+
+                            // Contribution History
+                            contributionHistorySection(goal)
                         }
-
-                        // Contribution History
-                        contributionHistorySection(goal)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 16)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 16)
                 }
                 .navigationTitle(goal.title)
                 .navigationBarTitleDisplayMode(.inline)
@@ -47,8 +53,10 @@ struct GoalDetailView: View {
                     ToolbarItem(placement: .primaryAction) {
                         Button {
                             showingEditSheet = true
+                            HapticsManager.shared.lightFeedback()
                         } label: {
                             Text("Edit")
+                                .fontWeight(.semibold)
                         }
                     }
                 }
@@ -62,10 +70,14 @@ struct GoalDetailView: View {
                     EditGoalSheet(goalStore: goalStore, goal: goal)
                 }
             } else {
-                VStack(spacing: 12) {
+                VStack(spacing: 14) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 44))
+                        .foregroundColor(.orange)
                     Text("Goal Not Found")
                         .font(.headline)
                     Button("Go Back") { dismiss() }
+                        .buttonStyle(BouncyButtonStyle())
                 }
             }
         }
@@ -73,50 +85,84 @@ struct GoalDetailView: View {
 
     // MARK: - Goal Summary Card
     private func goalSummaryCard(_ goal: SavingsGoal) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    if let destination = goal.destination {
-                        Label(destination, systemImage: "mappin.and.ellipse")
-                            .font(.subheadline)
-                            .foregroundColor(.blue)
+                VStack(alignment: .leading, spacing: 6) {
+                    if let destination = goal.destination, !destination.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "mappin.and.ellipse")
+                                .font(.system(size: 11, weight: .bold))
+                            Text(destination.uppercased())
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                        }
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.blue.opacity(0.12))
+                        .clipShape(Capsule())
                     }
+
                     Text(goal.title)
-                        .font(.title2)
+                        .font(.system(.title2, design: .rounded))
                         .fontWeight(.bold)
                         .foregroundColor(.primary)
                 }
+
                 Spacer()
+
                 if goal.isCompleted {
-                    Label("Target Achieved", systemImage: "checkmark.seal.fill")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundColor(.green)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Color.green.opacity(0.15))
-                        .clipShape(Capsule())
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.seal.fill")
+                        Text("Target Achieved")
+                    }
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundColor(.green)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.green.opacity(0.16))
+                    .clipShape(Capsule())
                 }
             }
 
             // Progress Bar
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(Color(.tertiarySystemFill))
-                        .frame(height: 10)
-                    Capsule()
-                        .fill(goal.isCompleted ? Color.green : Color.blue)
-                        .frame(width: max(0, min(geo.size.width, geo.size.width * CGFloat(goal.progressFraction))), height: 10)
+            VStack(spacing: 6) {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color(uiColor: .tertiarySystemFill))
+                            .frame(height: 12)
+
+                        Capsule()
+                            .fill(
+                                goal.isCompleted
+                                    ? LinearGradient(colors: [Color.green, Color.mint], startPoint: .leading, endPoint: .trailing)
+                                    : LinearGradient(colors: [Color.blue, Color.cyan], startPoint: .leading, endPoint: .trailing)
+                            )
+                            .frame(
+                                width: max(8, min(geo.size.width, geo.size.width * CGFloat(goal.progressFraction))),
+                                height: 12
+                            )
+                            .animation(.spring(response: 0.4, dampingFraction: 0.75), value: goal.progressFraction)
+                    }
+                }
+                .frame(height: 12)
+
+                HStack {
+                    Text("\(Int(goal.progressFraction * 100))% Complete")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text("Target: \(CurrencyHelper.shared.format(goal.targetAmount))")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundColor(.secondary)
                 }
             }
-            .frame(height: 10)
 
             // Primary Numbers Grid
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Saved")
-                        .font(.caption)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("SAVED")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
                         .foregroundColor(.secondary)
                     Text(CurrencyHelper.shared.format(goal.confirmedSaved))
                         .font(.system(.title3, design: .rounded))
@@ -124,9 +170,9 @@ struct GoalDetailView: View {
                         .foregroundColor(.primary)
                 }
                 Spacer()
-                VStack(alignment: .center, spacing: 2) {
-                    Text("Target")
-                        .font(.caption)
+                VStack(alignment: .center, spacing: 3) {
+                    Text("TARGET")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
                         .foregroundColor(.secondary)
                     Text(CurrencyHelper.shared.format(goal.targetAmount))
                         .font(.system(.title3, design: .rounded))
@@ -134,9 +180,9 @@ struct GoalDetailView: View {
                         .foregroundColor(.primary)
                 }
                 Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("Remaining")
-                        .font(.caption)
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text("REMAINING")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
                         .foregroundColor(.secondary)
                     Text(CurrencyHelper.shared.format(goal.remainingAmount))
                         .font(.system(.title3, design: .rounded))
@@ -146,14 +192,15 @@ struct GoalDetailView: View {
             }
 
             Divider()
+                .opacity(0.6)
 
             // Required Daily Pace & Days Left
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Daily Suggested Pace")
-                        .font(.caption)
+                    Text("Suggested Pace")
+                        .font(.caption2)
                         .foregroundColor(.secondary)
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline, spacing: 3) {
                         Text(CurrencyHelper.shared.formatWhole(goal.currentDailyPace()))
                             .font(.system(.title3, design: .rounded))
                             .fontWeight(.bold)
@@ -166,70 +213,81 @@ struct GoalDetailView: View {
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("Time Left")
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundColor(.secondary)
                     Text("\(goal.remainingDays()) days")
-                        .font(.headline)
+                        .font(.system(.headline, design: .rounded))
+                        .fontWeight(.bold)
                         .foregroundColor(.primary)
                 }
             }
         }
-        .padding(18)
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(18)
+        .padding(20)
+        .glassCard(cornerRadius: 22, strokeOpacity: 0.1, shadowRadius: 10)
     }
 
     // MARK: - Consistency Metrics Section
     private func consistencyMetricsSection(_ goal: SavingsGoal) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Consistency & Habits")
-                .font(.headline)
-                .foregroundColor(.primary)
+        VStack(alignment: .leading, spacing: 12) {
+            Text("CONSISTENCY & HABITS")
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundColor(.secondary)
+                .padding(.leading, 4)
 
             HStack(spacing: 12) {
                 // Streak Card
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Image(systemName: "flame.fill")
-                            .foregroundColor(.orange)
+                        ZStack {
+                            Circle()
+                                .fill(Color.orange.opacity(0.18))
+                                .frame(width: 28, height: 28)
+                            Image(systemName: "flame.fill")
+                                .foregroundColor(.orange)
+                                .font(.system(size: 13, weight: .bold))
+                        }
                         Text("Active Streak")
-                            .font(.caption)
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
                             .foregroundColor(.secondary)
                     }
                     Text("\(goal.consecutiveContributionStreak) days")
-                        .font(.title3)
+                        .font(.system(.title3, design: .rounded))
                         .fontWeight(.bold)
                         .foregroundColor(.primary)
-                    Text("Encouraging pace")
+                    Text("Steady pace keeps momentum")
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
-                .background(Color(.secondarySystemBackground))
-                .cornerRadius(14)
+                .glassCard(cornerRadius: 18, strokeOpacity: 0.08, shadowRadius: 6)
 
                 // Days Met Target Card
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.blue)
+                        ZStack {
+                            Circle()
+                                .fill(Color.blue.opacity(0.18))
+                                .frame(width: 28, height: 28)
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.blue)
+                                .font(.system(size: 13, weight: .bold))
+                        }
                         Text("Target Met")
-                            .font(.caption)
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
                             .foregroundColor(.secondary)
                     }
                     Text("\(goal.daysMeetingTargetCount) days")
-                        .font(.title3)
+                        .font(.system(.title3, design: .rounded))
                         .fontWeight(.bold)
                         .foregroundColor(.primary)
-                    Text("Total saved days: \(goal.totalContributionDaysCount)")
+                    Text("Total active: \(goal.totalContributionDaysCount) days")
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
-                .background(Color(.secondarySystemBackground))
-                .cornerRadius(14)
+                .glassCard(cornerRadius: 18, strokeOpacity: 0.08, shadowRadius: 6)
             }
         }
     }
@@ -243,48 +301,57 @@ struct GoalDetailView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Savings Calendar")
-                        .font(.headline)
+                        .font(.system(.headline, design: .rounded))
+                        .fontWeight(.bold)
                         .foregroundColor(.primary)
                     Text(monthTitle(for: calendarMonth))
-                        .font(.subheadline)
+                        .font(.system(.subheadline, design: .rounded))
                         .foregroundColor(.secondary)
                 }
                 Spacer()
                 // Month Navigation
-                HStack(spacing: 12) {
+                HStack(spacing: 8) {
                     Button {
                         if let prev = calendar.date(byAdding: .month, value: -1, to: calendarMonth) {
-                            calendarMonth = prev
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                                calendarMonth = prev
+                            }
                         }
+                        HapticsManager.shared.lightFeedback()
                     } label: {
                         Image(systemName: "chevron.left")
-                            .font(.body)
+                            .font(.system(size: 12, weight: .bold))
                             .padding(8)
-                            .background(Color(.tertiarySystemBackground))
+                            .background(Color(uiColor: .tertiarySystemFill))
                             .clipShape(Circle())
                     }
+                    .buttonStyle(BouncyButtonStyle(scaleAmount: 0.88))
                     .accessibilityLabel("Previous month")
 
                     Button {
                         if let next = calendar.date(byAdding: .month, value: 1, to: calendarMonth) {
-                            calendarMonth = next
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                                calendarMonth = next
+                            }
                         }
+                        HapticsManager.shared.lightFeedback()
                     } label: {
                         Image(systemName: "chevron.right")
-                            .font(.body)
+                            .font(.system(size: 12, weight: .bold))
                             .padding(8)
-                            .background(Color(.tertiarySystemBackground))
+                            .background(Color(uiColor: .tertiarySystemFill))
                             .clipShape(Circle())
                     }
+                    .buttonStyle(BouncyButtonStyle(scaleAmount: 0.88))
                     .accessibilityLabel("Next month")
                 }
             }
 
             // Compact Legend (Color + Symbol + Text)
-            HStack(spacing: 14) {
+            HStack(spacing: 12) {
                 legendItem(symbol: "star.fill", label: "Above Target", color: .purple)
                 legendItem(symbol: "checkmark", label: "Target Met", color: .green)
-                legendItem(symbol: "circle.fill", label: "Below Target", color: .blue.opacity(0.6))
+                legendItem(symbol: "circle.fill", label: "Below Target", color: .blue.opacity(0.7))
                 legendItem(symbol: "circle", label: "No Activity", color: .secondary.opacity(0.4))
             }
             .font(.caption2)
@@ -293,8 +360,7 @@ struct GoalDetailView: View {
             HStack {
                 ForEach(["S", "M", "T", "W", "T", "F", "S"], id: \.self) { day in
                     Text(day)
-                        .font(.caption2)
-                        .fontWeight(.semibold)
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity)
                 }
@@ -303,7 +369,8 @@ struct GoalDetailView: View {
             // Days Grid
             let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 7)
             LazyVGrid(columns: columns, spacing: 6) {
-                ForEach(monthDays, id: \.self) { date in
+                ForEach(monthDays.indices, id: \.self) { idx in
+                    let date = monthDays[idx]
                     if let date = date {
                         calendarCell(for: date, in: goal, calendar: calendar)
                     } else {
@@ -315,18 +382,20 @@ struct GoalDetailView: View {
             // Date Inspector
             if let selected = selectedCalendarDate {
                 dateInspectorCard(for: selected, in: goal, calendar: calendar)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .padding(18)
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(18)
+        .glassCard(cornerRadius: 22, strokeOpacity: 0.1, shadowRadius: 10)
     }
 
     private func legendItem(symbol: String, label: String, color: Color) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 3) {
             Image(systemName: symbol)
+                .font(.system(size: 8, weight: .bold))
                 .foregroundColor(color)
             Text(label)
+                .font(.system(size: 10, design: .rounded))
                 .foregroundColor(.secondary)
         }
     }
@@ -341,32 +410,33 @@ struct GoalDetailView: View {
 
         switch comparison {
         case .aboveTarget:
-            cellColor = Color.purple.opacity(0.3)
+            cellColor = Color.purple.opacity(colorScheme == .dark ? 0.35 : 0.22)
             symbol = "star.fill"
         case .targetReached:
-            cellColor = Color.green.opacity(0.25)
+            cellColor = Color.green.opacity(colorScheme == .dark ? 0.35 : 0.2)
             symbol = "checkmark"
         case .belowTarget:
-            cellColor = Color.blue.opacity(0.18)
+            cellColor = Color.blue.opacity(colorScheme == .dark ? 0.25 : 0.15)
             symbol = "circle.fill"
         case .neutral:
-            cellColor = Color(.tertiarySystemBackground)
+            cellColor = Color(uiColor: .tertiarySystemFill).opacity(0.6)
             symbol = nil
         }
 
         return Button {
-            selectedCalendarDate = date
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
+                selectedCalendarDate = date
+            }
             HapticsManager.shared.lightFeedback()
         } label: {
             VStack(spacing: 2) {
                 Text("\(dayNum)")
-                    .font(.caption)
-                    .fontWeight(isSelected ? .bold : .regular)
+                    .font(.system(size: 12, weight: isSelected ? .bold : .medium, design: .rounded))
                     .foregroundColor(.primary)
 
                 if let symbol = symbol {
                     Image(systemName: symbol)
-                        .font(.system(size: 8))
+                        .font(.system(size: 8, weight: .bold))
                         .foregroundColor(comparison == .aboveTarget ? .purple : (comparison == .targetReached ? .green : .blue))
                 } else {
                     Spacer().frame(height: 8)
@@ -376,12 +446,12 @@ struct GoalDetailView: View {
             .frame(height: 38)
             .background(cellColor)
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
             )
-            .cornerRadius(8)
+            .cornerRadius(10)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SubtlePressStyle(scaleAmount: 0.92))
         .accessibilityLabel("\(calendar.component(.day, from: date)) \(monthTitle(for: date)): \(comparison.rawValue)")
     }
 
@@ -397,100 +467,138 @@ struct GoalDetailView: View {
         return HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(dateString)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .font(.system(.subheadline, design: .rounded))
+                    .fontWeight(.bold)
                     .foregroundColor(.primary)
                 Text(comparison.rawValue)
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundColor(.secondary)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
                 Text("Saved: \(CurrencyHelper.shared.format(savedOnDay))")
-                    .font(.subheadline)
+                    .font(.system(.subheadline, design: .rounded))
                     .fontWeight(.bold)
                     .foregroundColor(.primary)
-                Text("Day's Target: \(CurrencyHelper.shared.formatWhole(snapshotTarget))")
-                    .font(.caption)
+                Text("Target: \(CurrencyHelper.shared.formatWhole(snapshotTarget))")
+                    .font(.caption2)
                     .foregroundColor(.secondary)
             }
         }
         .padding(12)
-        .background(Color(.tertiarySystemBackground))
-        .cornerRadius(12)
+        .background(Color(uiColor: .tertiarySystemGroupedBackground))
+        .cornerRadius(14)
         .accessibilityElement(children: .combine)
     }
 
     // MARK: - Cost Breakdown Section
     private func costBreakdownSection(_ goal: SavingsGoal) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Trip Cost Breakdown")
-                .font(.headline)
-                .foregroundColor(.primary)
+        VStack(alignment: .leading, spacing: 12) {
+            Text("TRIP COST BREAKDOWN")
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundColor(.secondary)
+                .padding(.leading, 4)
 
             ForEach(goal.costBreakdown) { item in
                 HStack {
-                    Text(item.title)
-                        .font(.body)
-                        .foregroundColor(.primary)
+                    HStack(spacing: 8) {
+                        Image(systemName: iconForBreakdown(item.title))
+                            .foregroundColor(.blue)
+                            .font(.system(size: 14, weight: .semibold))
+                        Text(item.title)
+                            .font(.system(.body, design: .rounded))
+                            .foregroundColor(.primary)
+                    }
                     Spacer()
                     Text(CurrencyHelper.shared.format(item.amount))
-                        .font(.body)
-                        .fontWeight(.semibold)
+                        .font(.system(.body, design: .rounded))
+                        .fontWeight(.bold)
                         .foregroundColor(.primary)
                 }
-                .padding(12)
-                .background(Color(.secondarySystemBackground))
-                .cornerRadius(12)
+                .padding(14)
+                .glassCard(cornerRadius: 16, strokeOpacity: 0.08, shadowRadius: 4)
             }
         }
     }
 
+    private func iconForBreakdown(_ title: String) -> String {
+        let t = title.lowercased()
+        if t.contains("travel") || t.contains("flight") { return "airplane" }
+        if t.contains("stay") || t.contains("hotel") { return "bed.double" }
+        if t.contains("food") || t.contains("dining") { return "fork.knife" }
+        if t.contains("activity") || t.contains("ticket") { return "ticket" }
+        return "dollarsign.circle"
+    }
+
     // MARK: - Contribution History Section
     private func contributionHistorySection(_ goal: SavingsGoal) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Contribution History (\(goal.contributions.count))")
-                .font(.headline)
-                .foregroundColor(.primary)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("CONTRIBUTION HISTORY")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("\(goal.contributions.count) logged")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.leading, 4)
 
             if goal.contributions.isEmpty {
-                Text("No contributions recorded yet. Tap '+ Contribute' below to start!")
+                Text("No contributions recorded yet. Tap '+ Record Contribution' below to kick off your progress!")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .padding(.vertical, 8)
+                    .padding(.horizontal, 4)
             } else {
                 let sortedContributions = goal.contributions.sorted { $0.date > $1.date }
                 ForEach(sortedContributions) { contrib in
-                    HStack {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.green.opacity(0.18))
+                                .frame(width: 36, height: 36)
+                            Image(systemName: "arrow.down.left")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.green)
+                        }
+
                         VStack(alignment: .leading, spacing: 2) {
                             Text(dateString(for: contrib.date))
-                                .font(.caption)
+                                .font(.caption2)
                                 .foregroundColor(.secondary)
                             if let note = contrib.note, !note.isEmpty {
                                 Text(note)
-                                    .font(.body)
+                                    .font(.system(.body, design: .rounded))
+                                    .foregroundColor(.primary)
+                            } else {
+                                Text("Contribution")
+                                    .font(.system(.body, design: .rounded))
                                     .foregroundColor(.primary)
                             }
                         }
+
                         Spacer()
+
                         Text("+\(CurrencyHelper.shared.format(contrib.amount))")
                             .font(.system(.headline, design: .rounded))
                             .fontWeight(.bold)
                             .foregroundColor(.green)
 
                         Button {
+                            HapticsManager.shared.warningFeedback()
                             goalStore.deleteContribution(contributionId: contrib.id, from: goal.id)
                         } label: {
                             Image(systemName: "trash")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                                .padding(6)
+                                .padding(8)
                         }
+                        .buttonStyle(BouncyButtonStyle(scaleAmount: 0.88))
                         .accessibilityLabel("Delete contribution")
                     }
-                    .padding(12)
-                    .background(Color(.secondarySystemBackground))
-                    .cornerRadius(12)
+                    .padding(14)
+                    .glassCard(cornerRadius: 16, strokeOpacity: 0.08, shadowRadius: 4)
                 }
             }
         }
@@ -503,18 +611,29 @@ struct GoalDetailView: View {
             HStack(spacing: 12) {
                 Button {
                     showingContributeSheet = true
+                    HapticsManager.shared.lightFeedback()
                 } label: {
-                    HStack {
+                    HStack(spacing: 8) {
                         Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 18, weight: .bold))
                         Text("Record Contribution")
-                            .fontWeight(.semibold)
+                            .font(.system(.headline, design: .rounded))
+                            .fontWeight(.bold)
                     }
                     .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(Color.blue)
+                    .frame(height: 52)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.blue, Color.blue.opacity(0.85)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                     .foregroundColor(.white)
-                    .cornerRadius(14)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .shadow(color: Color.blue.opacity(0.3), radius: 10, x: 0, y: 4)
                 }
+                .buttonStyle(BouncyButtonStyle(scaleAmount: 0.96))
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
@@ -539,7 +658,7 @@ struct GoalDetailView: View {
     private func daysInMonth(for date: Date, calendar: Calendar) -> [Date?] {
         guard let interval = calendar.dateInterval(of: .month, for: date) else { return [] }
         let firstDay = interval.start
-        let weekday = calendar.component(.weekday, from: firstDay) - 1 // 0 for Sunday
+        let weekday = calendar.component(.weekday, from: firstDay) - 1
         let range = calendar.range(of: .day, in: .month, for: date)!
 
         var days: [Date?] = Array(repeating: nil, count: weekday)
@@ -571,20 +690,23 @@ struct ContributeSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Amount Set Aside") {
+                Section {
                     HStack {
                         Text("₹")
-                            .font(.title2)
-                            .bold()
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .foregroundColor(.blue)
                         TextField("0", text: $amountString)
-                            .font(.title2)
+                            .font(.system(size: 32, weight: .bold, design: .rounded))
                             .keyboardType(.decimalPad)
                     }
+                    .padding(.vertical, 4)
+                } header: {
+                    Text("Amount Set Aside")
                 }
 
                 Section("Details") {
                     DatePicker("Date", selection: $date, displayedComponents: .date)
-                    TextField("Note (optional)", text: $note)
+                    TextField("Note (optional, e.g. Freelance bonus)", text: $note)
                 }
             }
             .navigationTitle("Record Contribution")
@@ -599,10 +721,12 @@ struct ContributeSheet: View {
                             showError = true
                             return
                         }
+                        HapticsManager.shared.milestoneCelebration()
                         goalStore.addContribution(to: goalId, amount: amount, date: date, note: note.isEmpty ? nil : note)
                         dismiss()
                     }
                     .disabled(parsedAmount == nil)
+                    .fontWeight(.semibold)
                 }
             }
             .alert("Invalid Amount", isPresented: $showError) {
@@ -645,6 +769,8 @@ struct EditGoalSheet: View {
                 Section("Target") {
                     HStack {
                         Text("₹")
+                            .font(.headline)
+                            .foregroundColor(.blue)
                         TextField("Target Amount", text: $targetAmountString)
                             .keyboardType(.decimalPad)
                     }
@@ -653,10 +779,17 @@ struct EditGoalSheet: View {
 
                 Section {
                     Button(role: .destructive) {
+                        HapticsManager.shared.warningFeedback()
                         goalStore.deleteGoal(id: goal.id)
                         dismiss()
                     } label: {
-                        Text("Delete Goal")
+                        HStack {
+                            Spacer()
+                            Image(systemName: "trash")
+                            Text("Delete Goal")
+                                .fontWeight(.semibold)
+                            Spacer()
+                        }
                     }
                 }
             }
@@ -669,6 +802,7 @@ struct EditGoalSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         if let targetDec = CurrencyHelper.shared.parseDecimal(from: targetAmountString), !title.isEmpty {
+                            HapticsManager.shared.successFeedback()
                             var updated = goal
                             updated.title = title
                             updated.destination = destination.isEmpty ? nil : destination
@@ -678,6 +812,7 @@ struct EditGoalSheet: View {
                             dismiss()
                         }
                     }
+                    .fontWeight(.semibold)
                 }
             }
         }

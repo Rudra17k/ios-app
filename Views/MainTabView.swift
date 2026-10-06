@@ -43,5 +43,8 @@ struct MainTabView: View {
                 .tag(3)
         }
         .tint(.blue)
+        .onChange(of: selectedTab) { _ in
+            HapticsManager.shared.lightFeedback()
+        }
     }
 }

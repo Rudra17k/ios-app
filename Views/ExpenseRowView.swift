@@ -3,6 +3,7 @@ import SwiftUI
 struct ExpenseRowView: View {
     let expense: Expense
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.colorScheme) private var colorScheme
 
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -24,10 +25,10 @@ struct ExpenseRowView: View {
         Group {
             if dynamicTypeSize.isAccessibilitySize {
                 // Stack vertically on accessibility sizes so text never clips
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 12) {
                         categoryBadge
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: 3) {
                             Text(expense.category.rawValue)
                                 .font(.headline)
                                 .foregroundColor(.primary)
@@ -38,14 +39,11 @@ struct ExpenseRowView: View {
                     }
 
                     if let note = expense.note, !note.isEmpty {
-                        Text(note)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .lineLimit(2)
+                        noteBadge(note)
                     }
 
                     Text(formattedAmount)
-                        .font(.system(.headline, design: .rounded))
+                        .font(.system(.title3, design: .rounded))
                         .fontWeight(.bold)
                         .foregroundColor(.primary)
                 }
@@ -56,33 +54,31 @@ struct ExpenseRowView: View {
                     categoryBadge
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(expense.category.rawValue)
-                            .font(.headline)
-                            .foregroundColor(.primary)
+                        HStack(spacing: 6) {
+                            Text(expense.category.rawValue)
+                                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                .foregroundColor(.primary)
 
-                        if let note = expense.note, !note.isEmpty {
-                            Text(note)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
+                            if let note = expense.note, !note.isEmpty {
+                                noteBadge(note)
+                            }
                         }
 
                         Text(formattedDate)
-                            .font(.caption)
+                            .font(.system(size: 12, weight: .regular, design: .rounded))
                             .foregroundColor(.secondary)
                     }
 
                     Spacer(minLength: 8)
 
                     Text(formattedAmount)
-                        .font(.system(.headline, design: .rounded))
-                        .fontWeight(.bold)
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
+                        .contentTransition(.numericText())
                         .lineLimit(1)
                         .layoutPriority(1)
                 }
-                .padding(.vertical, 6)
+                .padding(.vertical, 2)
             }
         }
         .contentShape(Rectangle())
@@ -90,15 +86,45 @@ struct ExpenseRowView: View {
         .accessibilityLabel("\(expense.category.rawValue), \(formattedAmount), \(formattedDate)\(expense.note.map { ", \($0)" } ?? "")")
     }
 
+    // MARK: - Category Badge
     private var categoryBadge: some View {
         ZStack {
-            Circle()
-                .fill(expense.category.color.opacity(0.16))
-                .frame(width: 44, height: 44)
+            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            expense.category.color.opacity(colorScheme == .dark ? 0.28 : 0.15),
+                            expense.category.color.opacity(colorScheme == .dark ? 0.14 : 0.06)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 13, style: .continuous)
+                        .strokeBorder(expense.category.color.opacity(colorScheme == .dark ? 0.3 : 0.15), lineWidth: 1)
+                )
+                .frame(width: 42, height: 42)
+
             Image(systemName: expense.category.iconName)
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(expense.category.color)
         }
         .accessibilityHidden(true)
+    }
+
+    // MARK: - Note Badge
+    private func noteBadge(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 11, weight: .medium, design: .rounded))
+            .foregroundColor(.secondary)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(
+                Capsule()
+                    .fill(Color(uiColor: .tertiarySystemFill))
+            )
     }
 }

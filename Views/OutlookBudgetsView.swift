@@ -4,6 +4,7 @@ struct OutlookBudgetsView: View {
     @ObservedObject var expenseStore: ExpenseStore
     @ObservedObject var budgetStore: BudgetStore
     @ObservedObject var goalStore: GoalStore
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var showingAddBill = false
     @State private var showingEditBudget = false
@@ -26,28 +27,33 @@ struct OutlookBudgetsView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Month over Month Comparison Card
-                    monthOverMonthCard
+            ZStack {
+                Color(uiColor: .systemGroupedBackground)
+                    .ignoresSafeArea()
 
-                    // Category Spending Breakdown
-                    categoryBreakdownCard
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Month over Month Comparison Card
+                        monthOverMonthCard
 
-                    // Category Budgets & Headroom
-                    categoryBudgetsSection
+                        // Category Spending Breakdown
+                        categoryBreakdownCard
 
-                    // Recurring Bills Section
-                    recurringBillsSection
+                        // Category Budgets & Headroom
+                        categoryBudgetsSection
 
-                    // 3-Month Outlook Projections
-                    threeMonthOutlookSection
+                        // Recurring Bills Section
+                        recurringBillsSection
 
-                    // Financial Disclaimer
-                    financialDisclaimer
+                        // 3-Month Outlook Projections
+                        threeMonthOutlookSection
+
+                        // Financial Disclaimer
+                        financialDisclaimer
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 16)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 16)
             }
             .navigationTitle("Outlook & Budgets")
             .toolbar {
@@ -55,13 +61,19 @@ struct OutlookBudgetsView: View {
                     Menu {
                         Button {
                             showingAddBill = true
+                            HapticsManager.shared.lightFeedback()
                         } label: {
                             Label("Add Recurring Bill", systemImage: "doc.text.fill")
                         }
                     } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 22))
+                        Image(systemName: "plus")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(8)
+                            .background(Color.blue)
+                            .clipShape(Circle())
                     }
+                    .buttonStyle(BouncyButtonStyle(scaleAmount: 0.88))
                 }
             }
             .sheet(isPresented: $showingAddBill) {
@@ -85,19 +97,42 @@ struct OutlookBudgetsView: View {
     private var monthOverMonthCard: some View {
         let current = expenseStore.thisMonthTotal
         let prior = expenseStore.priorMonthTotal
-
         let diff = current - prior
         let isHigher = diff > 0
 
-        return VStack(alignment: .leading, spacing: 12) {
-            Text("Month-over-Month Comparison")
-                .font(.headline)
-                .foregroundColor(.primary)
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.left.arrow.right.circle.fill")
+                        .foregroundColor(.blue)
+                        .font(.system(size: 14))
+                    Text("MONTH-OVER-MONTH")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                if prior > 0 {
+                    let percent = NSDecimalNumber(decimal: (diff / prior) * 100).intValue
+                    HStack(spacing: 4) {
+                        Image(systemName: isHigher ? "arrow.up.right" : "arrow.down.right")
+                            .font(.system(size: 10, weight: .bold))
+                        Text("\(abs(percent))%")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                    }
+                    .foregroundColor(isHigher ? .orange : .green)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background((isHigher ? Color.orange : Color.green).opacity(0.14))
+                    .clipShape(Capsule())
+                }
+            }
 
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text("This Month")
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundColor(.secondary)
                     Text(CurrencyHelper.shared.format(current))
                         .font(.system(.title3, design: .rounded))
@@ -107,9 +142,9 @@ struct OutlookBudgetsView: View {
 
                 Spacer()
 
-                VStack(alignment: .center, spacing: 2) {
+                VStack(alignment: .center, spacing: 3) {
                     Text("Last Month")
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundColor(.secondary)
                     Text(CurrencyHelper.shared.format(prior))
                         .font(.system(.title3, design: .rounded))
@@ -119,9 +154,9 @@ struct OutlookBudgetsView: View {
 
                 Spacer()
 
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("Change")
-                        .font(.caption)
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text("Difference")
+                        .font(.caption2)
                         .foregroundColor(.secondary)
                     if prior == 0 {
                         Text("—")
@@ -129,16 +164,15 @@ struct OutlookBudgetsView: View {
                             .foregroundColor(.secondary)
                     } else {
                         Text("\(isHigher ? "+" : "")\(CurrencyHelper.shared.format(diff))")
-                            .font(.system(.subheadline, design: .rounded))
+                            .font(.system(.title3, design: .rounded))
                             .fontWeight(.bold)
                             .foregroundColor(isHigher ? .orange : .green)
                     }
                 }
             }
         }
-        .padding(16)
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(16)
+        .padding(18)
+        .glassCard(cornerRadius: 22, strokeOpacity: 0.1, shadowRadius: 10)
     }
 
     // MARK: - Category Breakdown Card
@@ -146,10 +180,11 @@ struct OutlookBudgetsView: View {
         let totals = currentMonthCategoryTotals
         let totalSpend = expenseStore.thisMonthTotal
 
-        return VStack(alignment: .leading, spacing: 12) {
-            Text("This Month's Spending by Category")
-                .font(.headline)
-                .foregroundColor(.primary)
+        return VStack(alignment: .leading, spacing: 14) {
+            Text("SPENDING BY CATEGORY")
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundColor(.secondary)
+                .padding(.leading, 2)
 
             if totals.isEmpty {
                 Text("No spending recorded this month.")
@@ -162,73 +197,113 @@ struct OutlookBudgetsView: View {
                     if spent > 0 {
                         let fraction = totalSpend > 0 ? NSDecimalNumber(decimal: spent / totalSpend).doubleValue : 0.0
 
-                        VStack(spacing: 4) {
+                        VStack(spacing: 6) {
                             HStack {
-                                Label(cat.rawValue, systemImage: cat.iconName)
-                                    .font(.subheadline)
-                                    .foregroundColor(.primary)
+                                HStack(spacing: 8) {
+                                    ZStack {
+                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                            .fill(cat.color.opacity(0.18))
+                                            .frame(width: 26, height: 26)
+                                        Image(systemName: cat.iconName)
+                                            .font(.system(size: 12, weight: .bold))
+                                            .foregroundColor(cat.color)
+                                    }
+                                    Text(cat.rawValue)
+                                        .font(.system(.body, design: .rounded))
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                }
+
                                 Spacer()
+
                                 Text(CurrencyHelper.shared.format(spent))
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
+                                    .font(.system(.body, design: .rounded))
+                                    .fontWeight(.bold)
                                     .foregroundColor(.primary)
+
                                 Text("(\(Int(fraction * 100))%)")
-                                    .font(.caption2)
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
                                     .foregroundColor(.secondary)
                             }
 
                             GeometryReader { geo in
                                 ZStack(alignment: .leading) {
-                                    Capsule().fill(Color(.tertiarySystemFill)).frame(height: 6)
-                                    Capsule().fill(cat.color).frame(width: max(0, min(geo.size.width, geo.size.width * CGFloat(fraction))), height: 6)
+                                    Capsule().fill(Color(uiColor: .tertiarySystemFill)).frame(height: 8)
+                                    Capsule()
+                                        .fill(cat.color)
+                                        .frame(width: max(6, min(geo.size.width, geo.size.width * CGFloat(fraction))), height: 8)
+                                        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: fraction)
                                 }
                             }
-                            .frame(height: 6)
+                            .frame(height: 8)
                         }
-                        .padding(.vertical, 2)
+                        .padding(.vertical, 4)
                     }
                 }
             }
         }
-        .padding(16)
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(16)
+        .padding(18)
+        .glassCard(cornerRadius: 22, strokeOpacity: 0.1, shadowRadius: 10)
     }
 
     // MARK: - Category Budgets & Headroom
     private var categoryBudgetsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Category Budgets")
-                    .font(.headline)
-                    .foregroundColor(.primary)
+                Text("BUDGET LIMITS & HEADROOM")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundColor(.secondary)
+                    .padding(.leading, 2)
+
                 Spacer()
-                Menu("Set Budget") {
+
+                Menu {
                     ForEach(ExpenseCategory.allCases) { cat in
-                        Button(cat.rawValue) {
+                        Button {
                             selectedBudgetCategory = cat
                             showingEditBudget = true
+                            HapticsManager.shared.lightFeedback()
+                        } label: {
+                            Label(cat.rawValue, systemImage: cat.iconName)
                         }
                     }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus.circle.fill")
+                        Text("Set Limit")
+                    }
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.12))
+                    .clipShape(Capsule())
                 }
-                .font(.subheadline)
             }
 
             if budgetStore.budgets.isEmpty {
-                Text("No budgets set. Tap 'Set Budget' above to establish limits and spot headroom.")
+                Text("No budgets set yet. Tap 'Set Limit' above to prevent overspending and calculate unspent headroom for your goals.")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .padding(.vertical, 4)
             } else {
                 let rooms = budgetStore.budgetRoom(categorySpending: currentMonthCategoryTotals)
                 ForEach(rooms, id: \.category) { item in
-                    VStack(spacing: 6) {
+                    VStack(spacing: 8) {
                         HStack {
-                            Label(item.category.rawValue, systemImage: item.category.iconName)
-                                .font(.subheadline)
+                            HStack(spacing: 6) {
+                                Image(systemName: item.category.iconName)
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(item.category.color)
+                                Text(item.category.rawValue)
+                                    .font(.system(.body, design: .rounded))
+                                    .fontWeight(.semibold)
+                            }
+
                             Spacer()
+
                             Text("\(CurrencyHelper.shared.format(item.spent)) / \(CurrencyHelper.shared.format(item.limit))")
-                                .font(.caption)
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
                                 .foregroundColor(.secondary)
                         }
 
@@ -237,13 +312,14 @@ struct OutlookBudgetsView: View {
 
                         GeometryReader { geo in
                             ZStack(alignment: .leading) {
-                                Capsule().fill(Color(.tertiarySystemFill)).frame(height: 6)
+                                Capsule().fill(Color(uiColor: .tertiarySystemFill)).frame(height: 8)
                                 Capsule()
-                                    .fill(isOver ? Color.red : Color.blue)
-                                    .frame(width: max(0, min(geo.size.width, geo.size.width * CGFloat(fraction))), height: 6)
+                                    .fill(isOver ? Color.red : (fraction > 0.8 ? Color.orange : Color.blue))
+                                    .frame(width: max(6, min(geo.size.width, geo.size.width * CGFloat(fraction))), height: 8)
+                                    .animation(.spring(response: 0.35, dampingFraction: 0.75), value: fraction)
                             }
                         }
-                        .frame(height: 6)
+                        .frame(height: 8)
 
                         HStack {
                             Text(isOver ? "Over budget" : "Headroom remaining")
@@ -251,36 +327,47 @@ struct OutlookBudgetsView: View {
                                 .foregroundColor(.secondary)
                             Spacer()
                             Text(isOver ? "-\(CurrencyHelper.shared.format(item.spent - item.limit))" : CurrencyHelper.shared.format(item.room))
-                                .font(.caption2)
+                                .font(.system(.caption, design: .rounded))
                                 .fontWeight(.bold)
                                 .foregroundColor(isOver ? .red : .green)
                         }
                     }
-                    .padding(12)
-                    .background(Color(.tertiarySystemBackground))
-                    .cornerRadius(12)
+                    .padding(14)
+                    .glassCard(cornerRadius: 16, strokeOpacity: 0.08, shadowRadius: 4)
                 }
             }
         }
-        .padding(16)
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(16)
+        .padding(18)
+        .glassCard(cornerRadius: 22, strokeOpacity: 0.1, shadowRadius: 10)
     }
 
     // MARK: - Recurring Bills
     private var recurringBillsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Recurring Bills & Commitments")
-                    .font(.headline)
-                    .foregroundColor(.primary)
+                Text("RECURRING BILLS")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundColor(.secondary)
+                    .padding(.leading, 2)
+
                 Spacer()
+
                 Button {
                     showingAddBill = true
+                    HapticsManager.shared.lightFeedback()
                 } label: {
-                    Text("+ Add")
-                        .font(.subheadline)
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus.circle.fill")
+                        Text("Add Bill")
+                    }
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.12))
+                    .clipShape(Capsule())
                 }
+                .buttonStyle(BouncyButtonStyle(scaleAmount: 0.94))
             }
 
             if budgetStore.recurringBills.isEmpty {
@@ -290,21 +377,33 @@ struct OutlookBudgetsView: View {
                     .padding(.vertical, 4)
             } else {
                 ForEach(budgetStore.recurringBills) { bill in
-                    HStack {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(bill.category.color.opacity(0.18))
+                                .frame(width: 36, height: 36)
+                            Image(systemName: bill.category.iconName)
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(bill.category.color)
+                        }
+
                         VStack(alignment: .leading, spacing: 2) {
                             Text(bill.title)
-                                .font(.body)
-                                .fontWeight(.medium)
-                            Text("Due day \(bill.dueDayOfMonth) each month • \(bill.category.rawValue)")
-                                .font(.caption)
+                                .font(.system(.body, design: .rounded))
+                                .fontWeight(.semibold)
+                            Text("Due day \(bill.dueDayOfMonth) • \(bill.category.rawValue)")
+                                .font(.caption2)
                                 .foregroundColor(.secondary)
                         }
+
                         Spacer()
+
                         Text(CurrencyHelper.shared.format(bill.amount))
-                            .font(.system(.body, design: .rounded))
-                            .fontWeight(.semibold)
+                            .font(.system(.headline, design: .rounded))
+                            .fontWeight(.bold)
 
                         Button {
+                            HapticsManager.shared.warningFeedback()
                             budgetStore.deleteRecurringBill(id: bill.id)
                         } label: {
                             Image(systemName: "trash")
@@ -312,48 +411,56 @@ struct OutlookBudgetsView: View {
                                 .foregroundColor(.secondary)
                                 .padding(6)
                         }
+                        .buttonStyle(BouncyButtonStyle(scaleAmount: 0.88))
                         .accessibilityLabel("Delete bill")
                     }
-                    .padding(10)
-                    .background(Color(.tertiarySystemBackground))
-                    .cornerRadius(10)
+                    .padding(12)
+                    .glassCard(cornerRadius: 16, strokeOpacity: 0.08, shadowRadius: 4)
                 }
 
+                Divider()
+                    .opacity(0.6)
+
                 HStack {
-                    Text("Total Monthly Bills")
-                        .font(.subheadline)
+                    Text("Total Committed Monthly")
+                        .font(.system(.subheadline, design: .rounded))
                         .fontWeight(.semibold)
                     Spacer()
                     Text(CurrencyHelper.shared.format(budgetStore.totalMonthlyBills))
-                        .font(.headline)
+                        .font(.system(.title3, design: .rounded))
                         .fontWeight(.bold)
+                        .foregroundColor(.primary)
                 }
-                .padding(.top, 4)
             }
         }
-        .padding(16)
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(16)
+        .padding(18)
+        .glassCard(cornerRadius: 22, strokeOpacity: 0.1, shadowRadius: 10)
     }
 
     // MARK: - Three-Month Outlook Section
     private var threeMonthOutlookSection: some View {
         let outlooks = budgetStore.generateThreeMonthOutlook(goalsTotalMonthlyPace: totalMonthlyGoalPace)
 
-        return VStack(alignment: .leading, spacing: 12) {
-            Text("3-Month Cashflow Outlook")
-                .font(.headline)
-                .foregroundColor(.primary)
+        return VStack(alignment: .leading, spacing: 14) {
+            Text("3-MONTH CASHFLOW OUTLOOK")
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundColor(.secondary)
+                .padding(.leading, 2)
 
-            Text("Projections based on your stated monthly income, essential expenses, recurring bills, and active goal paces.")
-                .font(.caption)
+            Text("Forward-looking projections combining your monthly income, essential baseline, fixed bills, and active goal paces.")
+                .font(.system(size: 12, design: .rounded))
                 .foregroundColor(.secondary)
 
-            // Income & Essentials Inputs
-            VStack(spacing: 8) {
+            // Income & Essentials Inputs Card
+            VStack(spacing: 12) {
                 HStack {
-                    Text("Est. Monthly Income")
-                        .font(.subheadline)
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.down.left.circle.fill")
+                            .foregroundColor(.green)
+                        Text("Monthly Income")
+                            .font(.system(.subheadline, design: .rounded))
+                            .fontWeight(.semibold)
+                    }
                     Spacer()
                     TextField("₹0", text: $incomeInputString)
                         .keyboardType(.decimalPad)
@@ -368,8 +475,13 @@ struct OutlookBudgetsView: View {
                 }
 
                 HStack {
-                    Text("Est. Essentials (Rent/Food)")
-                        .font(.subheadline)
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.up.right.circle.fill")
+                            .foregroundColor(.orange)
+                        Text("Estimated Essentials")
+                            .font(.system(.subheadline, design: .rounded))
+                            .fontWeight(.semibold)
+                    }
                     Spacer()
                     TextField("₹0", text: $essentialsInputString)
                         .keyboardType(.decimalPad)
@@ -383,48 +495,59 @@ struct OutlookBudgetsView: View {
                         }
                 }
             }
-            .padding(12)
-            .background(Color(.tertiarySystemBackground))
-            .cornerRadius(12)
+            .padding(14)
+            .glassCard(cornerRadius: 16, strokeOpacity: 0.08, shadowRadius: 4)
 
             // Monthly Outlook Cards
             ForEach(outlooks) { outlook in
-                VStack(alignment: .leading, spacing: 6) {
+                let net = outlook.projectedNetBalance
+
+                VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text(outlook.monthName)
-                            .font(.headline)
-                        Spacer()
-                        let net = outlook.projectedNetBalance
-                        Text(CurrencyHelper.shared.format(net))
                             .font(.system(.headline, design: .rounded))
+                            .fontWeight(.bold)
+                        Spacer()
+                        Text(CurrencyHelper.shared.format(net))
+                            .font(.system(.title3, design: .rounded))
                             .fontWeight(.bold)
                             .foregroundColor(net >= 0 ? .green : .red)
                     }
 
                     HStack {
-                        Text("Inflow: \(CurrencyHelper.shared.format(outlook.projectedIncome))")
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.down.left")
+                                .font(.system(size: 10, weight: .bold))
+                            Text("Inflow: \(CurrencyHelper.shared.format(outlook.projectedIncome))")
+                        }
                         Spacer()
-                        Text("Outflow: \(CurrencyHelper.shared.format(outlook.totalProjectedOutflow))")
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 10, weight: .bold))
+                            Text("Outflow: \(CurrencyHelper.shared.format(outlook.totalProjectedOutflow))")
+                        }
                     }
-                    .font(.caption)
+                    .font(.system(size: 12, design: .rounded))
                     .foregroundColor(.secondary)
 
-                    Text("Includes \(CurrencyHelper.shared.format(outlook.savingsGoalsAllocation)) toward active savings goals.")
-                        .font(.caption2)
-                        .foregroundColor(.blue)
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 10))
+                        Text("Includes \(CurrencyHelper.shared.format(outlook.savingsGoalsAllocation)) reserved for goals")
+                    }
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundColor(.blue)
                 }
-                .padding(12)
-                .background(Color(.tertiarySystemBackground))
-                .cornerRadius(12)
+                .padding(14)
+                .glassCard(cornerRadius: 16, strokeOpacity: 0.08, shadowRadius: 4)
             }
         }
-        .padding(16)
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(16)
+        .padding(18)
+        .glassCard(cornerRadius: 22, strokeOpacity: 0.1, shadowRadius: 10)
     }
 
     private var financialDisclaimer: some View {
-        Text("Projections, daily paces, and budget room are estimates based entirely on local user entries. They do not constitute certified financial or investment advice.")
+        Text("Projections, daily paces, and budget headroom are estimates calculated locally on-device based on your entries. They do not constitute financial advice.")
             .font(.caption2)
             .foregroundColor(.secondary)
             .multilineTextAlignment(.center)
@@ -446,16 +569,25 @@ struct AddRecurringBillSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Bill Details") {
-                    TextField("Title (e.g. WiFi, Rent, Phone)", text: $title)
+                Section {
                     HStack {
                         Text("₹")
-                        TextField("Amount", text: $amountString)
+                            .font(.title2)
+                            .bold()
+                            .foregroundColor(.blue)
+                        TextField("0", text: $amountString)
+                            .font(.title2)
                             .keyboardType(.decimalPad)
                     }
+                } header: {
+                    Text("Bill Amount")
+                }
+
+                Section("Bill Details") {
+                    TextField("Title (e.g. WiFi, Rent, iCloud)", text: $title)
                     Picker("Category", selection: $category) {
                         ForEach(ExpenseCategory.allCases) { cat in
-                            Text(cat.rawValue).tag(cat)
+                            Label(cat.rawValue, systemImage: cat.iconName).tag(cat)
                         }
                     }
                     Stepper("Due Day of Month: \(dueDay)", value: $dueDay, in: 1...31)
@@ -470,10 +602,12 @@ struct AddRecurringBillSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         if let amount = CurrencyHelper.shared.parseDecimal(from: amountString), !title.isEmpty {
+                            HapticsManager.shared.successFeedback()
                             budgetStore.addRecurringBill(title: title, amount: amount, dueDay: dueDay, category: category)
                             dismiss()
                         }
                     }
+                    .fontWeight(.semibold)
                 }
             }
         }
@@ -499,21 +633,34 @@ struct SetBudgetSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Monthly Budget for \(category.rawValue)") {
+                Section {
                     HStack {
                         Text("₹")
+                            .font(.title2)
+                            .bold()
+                            .foregroundColor(category.color)
                         TextField("0", text: $limitString)
+                            .font(.title2)
                             .keyboardType(.decimalPad)
                     }
+                } header: {
+                    Text("Monthly Limit for \(category.rawValue)")
                 }
 
                 if currentLimit > 0 {
                     Section {
                         Button(role: .destructive) {
+                            HapticsManager.shared.warningFeedback()
                             budgetStore.setBudget(for: category, limit: .zero)
                             dismiss()
                         } label: {
-                            Text("Remove Budget")
+                            HStack {
+                                Spacer()
+                                Image(systemName: "trash")
+                                Text("Remove Limit")
+                                    .fontWeight(.semibold)
+                                Spacer()
+                            }
                         }
                     }
                 }
@@ -526,10 +673,12 @@ struct SetBudgetSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
+                        HapticsManager.shared.successFeedback()
                         let amount = CurrencyHelper.shared.parseDecimal(from: limitString) ?? .zero
                         budgetStore.setBudget(for: category, limit: amount)
                         dismiss()
                     }
+                    .fontWeight(.semibold)
                 }
             }
         }

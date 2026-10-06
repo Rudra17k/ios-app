@@ -20,6 +20,15 @@ struct AddGoalView: View {
         return dec
     }
 
+    private var breakdownSum: Decimal {
+        var sum: Decimal = .zero
+        if let travel = CurrencyHelper.shared.parseDecimal(from: breakdownTravel) { sum += travel }
+        if let stay = CurrencyHelper.shared.parseDecimal(from: breakdownStay) { sum += stay }
+        if let food = CurrencyHelper.shared.parseDecimal(from: breakdownFood) { sum += food }
+        if let act = CurrencyHelper.shared.parseDecimal(from: breakdownActivities) { sum += act }
+        return sum
+    }
+
     private var isFormValid: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty && parsedTarget != nil
     }
@@ -27,19 +36,35 @@ struct AddGoalView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Goal Basics") {
-                    TextField("Goal Name (e.g. Goa Trip, New Laptop)", text: $title)
-                    TextField("Destination (optional, e.g. North Goa)", text: $destination)
-                }
-
-                Section("Target") {
-                    HStack {
+                Section {
+                    HStack(spacing: 8) {
                         Text("₹")
-                            .bold()
+                            .font(.system(size: 32, weight: .bold, design: .rounded))
+                            .foregroundColor(.blue)
                         TextField("Target Amount", text: $targetAmountString)
+                            .font(.system(size: 32, weight: .bold, design: .rounded))
                             .keyboardType(.decimalPad)
                     }
+                    .padding(.vertical, 4)
+
                     DatePicker("Target Date", selection: $targetDate, in: Date()..., displayedComponents: .date)
+                } header: {
+                    Text("Target")
+                }
+
+                Section("Goal Details") {
+                    HStack {
+                        Image(systemName: "flag.fill")
+                            .foregroundColor(.blue)
+                            .font(.system(size: 14))
+                        TextField("Goal Name (e.g. Goa Trip, MacBook)", text: $title)
+                    }
+                    HStack {
+                        Image(systemName: "mappin.and.ellipse")
+                            .foregroundColor(.blue)
+                            .font(.system(size: 14))
+                        TextField("Destination / Tag (optional)", text: $destination)
+                    }
                 }
 
                 Section {
@@ -71,10 +96,23 @@ struct AddGoalView: View {
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                     }
+
+                    if breakdownSum > 0 {
+                        HStack {
+                            Text("Total Estimated Items")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text(CurrencyHelper.shared.format(breakdownSum))
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundColor(.blue)
+                        }
+                    }
                 } header: {
                     Text("Trip Cost Breakdown (Optional)")
                 } footer: {
-                    Text("Breaking down your trip costs makes it easier to plan and adjust as dates approach.")
+                    Text("Breaking down your goal makes daily pacing more transparent.")
                 }
             }
             .navigationTitle("New Savings Goal")
@@ -88,6 +126,7 @@ struct AddGoalView: View {
                         saveGoal()
                     }
                     .disabled(!isFormValid)
+                    .fontWeight(.semibold)
                 }
             }
         }

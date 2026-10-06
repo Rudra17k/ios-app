@@ -30,6 +30,7 @@
 		100100000000000000000021 /* OutlookBudgetsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200100000000000000000022 /* OutlookBudgetsView.swift */; };
 		100100000000000000000022 /* SettingsPrivacyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200100000000000000000023 /* SettingsPrivacyView.swift */; };
 		100100000000000000000023 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200100000000000000000024 /* MainTabView.swift */; };
+		F08CD3B430756F5F00460811 /* UIComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = F054EFB330756D3700034AEB /* UIComponents.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -57,6 +58,7 @@
 		200100000000000000000022 /* OutlookBudgetsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutlookBudgetsView.swift; sourceTree = "<group>"; };
 		200100000000000000000023 /* SettingsPrivacyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPrivacyView.swift; sourceTree = "<group>"; };
 		200100000000000000000024 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		F054EFB330756D3700034AEB /* UIComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIComponents.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -128,6 +130,7 @@
 				200100000000000000000022 /* OutlookBudgetsView.swift */,
 				200100000000000000000023 /* SettingsPrivacyView.swift */,
 				200100000000000000000024 /* MainTabView.swift */,
+				F054EFB330756D3700034AEB /* UIComponents.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -222,6 +225,7 @@
 				100100000000000000000020 /* GoalsView.swift in Sources */,
 				100100000000000000000021 /* OutlookBudgetsView.swift in Sources */,
 				100100000000000000000022 /* SettingsPrivacyView.swift in Sources */,
+				F08CD3B430756F5F00460811 /* UIComponents.swift in Sources */,
 				100100000000000000000023 /* MainTabView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -242,14 +246,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Expenses;
-				INFOPLIST_KEY_CFBundleURLTypes = (
-					{
-						CFBundleURLName = "com.rudratomar.ExpenseTracker";
-						CFBundleURLSchemes = (
-							expensetracker,
-						);
-					},
-				);
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"com.rudratomar.ExpenseTracker\";\n    CFBundleURLSchemes =     (\n        expensetracker\n    );\n}";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -283,14 +280,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Expenses;
-				INFOPLIST_KEY_CFBundleURLTypes = (
-					{
-						CFBundleURLName = "com.rudratomar.ExpenseTracker";
-						CFBundleURLSchemes = (
-							expensetracker,
-						);
-					},
-				);
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"com.rudratomar.ExpenseTracker\";\n    CFBundleURLSchemes =     (\n        expensetracker\n    );\n}";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
